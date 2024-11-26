@@ -3,13 +3,18 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-
+import unicodedata
+from openpyxl import Workbook, load_workbook
 import sys
 import io
 
-# Pra sair em Português
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+def normalizar_texto(texto):
+    """
+    Remove inconsistências de encoding e normaliza acentos.
+    """
+    return unicodedata.normalize('NFC', texto)
 
 def obter_valores_frete_selenium(url, cep):
     """
@@ -60,34 +65,65 @@ def calcular_frete_para_ceps(url, lista_ceps):
 
     return resultados
 
+def salvar_em_excel(caminho_arquivo, dados):
+    """
+    Salva os dados no Excel.
+    """
+    try:
+        try:
+            workbook = load_workbook(caminho_arquivo)
+        except FileNotFoundError:
+            workbook = Workbook()
+        
+        if 'Fretes' in workbook.sheetnames:
+            sheet = workbook['Fretes']
+        else:
+            sheet = workbook.create_sheet('Fretes')
+
+        # Cabeçalhos
+        if sheet.max_row == 1 and sheet.cell(1, 1).value is None:
+            sheet.append(['CEP', 'Tipo', 'Valor', 'Prazo'])
+
+        # Adicionar os dados
+        for cep, opcoes in dados.items():
+            for opcao in opcoes:
+                sheet.append([cep, opcao['tipo'], opcao['valor'], opcao['prazo']])
+        
+        # Salvar o arquivo
+        workbook.save(caminho_arquivo)
+        print(f"Dados salvos em: {caminho_arquivo}")
+    except Exception as e:
+        print(f"Erro ao salvar no Excel: {e}")
+
+
 if __name__ == "__main__":
-    url_produto = 'https://www.sestini.com.br/mala-de-viagem-bordo-com-rodas-360-to-walk-grafite/p'
+    url_produto = 'https://www.sestini.com.br/mala-de-viagem-bordo-com-rodas-360-gama-3-preto/p'
     lista_ceps = [
     "01000-000",
     "20000-000",
-    "20000-000",
-    "30100-000",
-    "90000-000",
-    "80000-000",
-    "40000-000",
-    "60000-000",
-    "70000-000",
-    "50000-000",
-    "69000-000",
-    "66000-000",
-    "74000-000",
-    "29000-000",
-    "88000-000",
-    "64000-000",
-    "65000-000",
-    "59000-000",
-    "57000-000",
-    "49000-000",
-    "79000-000",
-    "78000-000",
-    "77000-000",
-    "69300-000",
-    "68900-000"
+    #"20000-000",
+    #"30100-000",
+    #"90000-000",
+    #80000-000",
+    #"40000-000",
+    #"60000-000",
+    #"70000-000",
+    #"50000-000",
+    #"69000-000",
+    #"66000-000",
+    #"74000-000",
+    #"29000-000",
+    #"88000-000",
+    #"64000-000",
+    #"65000-000",
+    #"59000-000",
+    #"57000-000",
+    #"49000-000",
+    #"79000-000",
+    #"78000-000",
+    #"77000-000",
+    #"69300-000",
+    #"68900-000"
     ]
 
     resultados_frete = calcular_frete_para_ceps(url_produto, lista_ceps)
@@ -99,3 +135,6 @@ if __name__ == "__main__":
             print(f"Valor: {opcao['valor']}")
             print(f"Prazo: {opcao['prazo']}")
             print("---")
+
+    caminho_excel = r"C:\Users\BG-PROVISORIO\Desktop\Testando códigos do Claude\CEP.xlsx"
+    salvar_em_excel(caminho_excel, resultados_frete)
